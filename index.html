@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CallingApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="sheet">
+   <style>
+* { box-sizing: border-box; }
+        :root {
+    --primary-color: #005c97;      /* الأزرق الأساسي */
+    --accent-color: #34B7F1;       /* أزرق فاتح للتفاعل */
+    --bg-color: #e5ddd5;           /* خلفية الدردشة */
+    --app-bg: #f0f2f5;             /* خلفية التطبيق */
+    --msg-sent: #d9fdd3;           /* لون الرسائل المرسلة */
+    --msg-received: #ffffff;       /* لون الرسائل المستقبلة */
+    --danger-color: #ef5350;       /* أحمر للأخطاء وإنهاء المكالمات */
+    --success-color: #4caf50;      /* أخضر للقبول */
+    --text-primary: #111b21;
+    --text-secondary: #667781;
+}
+      /* تأثير وميض لكلمة typing... */
+#typing-status {
+    font-style: italic;
+    animation: blink 1.5s infinite;
+}
+@keyframes blink {
+    0% { opacity: 0.4; }
+    50% { opacity: 1; }
+    100% { opacity: 0.4; }
+}
+
+/* تمييز المكالمات الفائتة */
+.missed-call {
+    border-left: 4px solid var(--danger-color);
+}
+body, html {
+    margin: 0; padding: 0; height: 100%;
+    font-family: 'Roboto', sans-serif;
+    background-color: #d1d7db;
+    display: flex; justify-content: center; align-items: center;
+}
+
+#app-container {
+    width: 100%; max-width: 450px; height: 100%; max-height: 900px;
+    background-color: #fff; position: relative; overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+@media (min-width: 480px) { #app-container { height: 95vh; border-radius: 12px; } }
+
+/* Utility Classes */
+.view { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; background: white; z-index: 10; }
+.hidden { display: none !important; }
+.icon-btn { background: none; border: none; cursor: pointer; padding: 8px; color: white; }
+.icon-btn svg { width: 24px; height: 24px; }
+.error-message { color: var(--danger-color); font-size: 12px; margin-top: 5px; min-height: 15px; }
+
+/* Auth View */
+#auth-view { justify-content: center; align-items: center; padding: 30px; background: var(--app-bg); text-align: center; }
+#auth-view h1 { color: var(--primary-color); margin-bottom: 40px; }
+#auth-view input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; }
+#auth-view button { width: 100%; padding: 12px; background: var(--success-color); color: white; border: none; border-radius: 20px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+#auth-view a { display: block; margin-top: 15px; color: var(--primary-color); text-decoration: none; font-size: 14px; }
+
+/* Main Header */
+.main-header { background-color: var(--primary-color); color: white; padding-top: 10px; }
+.header-top { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; }
+.header-nav { display: flex; justify-content: space-around; padding-bottom: 0; }
+.nav-tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; opacity: 0.7; border-bottom: 3px solid transparent; font-weight: 500; text-transform: uppercase; font-size: 14px; color: white; }
+.nav-tab.active { opacity: 1; border-bottom-color: white; }
+.badge { background: var(--danger-color); padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 5px; vertical-align: top; }
+
+/* Lists */
+.list-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: 0.2s; }
+.list-item:hover { background: #f5f5f5; }
+.avatar { width: 45px; height: 45px; background: #ddd; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin-right: 15px; font-size: 20px; color: white; font-weight: bold; }
+.item-info { flex: 1; }
+.item-title { font-weight: bold; color: var(--text-primary); }
+.item-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+
+/* Chat View */
+#chat-view { background: var(--bg-color); z-index: 20; }
+.chat-header { background: var(--primary-color); color: white; padding: 8px; display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.contact-info { flex: 1; display: flex; flex-direction: column; }
+#contact-name { font-weight: bold; font-size: 16px; }
+#contact-username { font-size: 12px; opacity: 0.8; }
+#chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%239C92AC' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E"); }
+
+.message { padding: 8px 12px; border-radius: 8px; max-width: 75%; font-size: 14px; position: relative; word-wrap: break-word; box-shadow: 0 1px 1px rgba(0,0,0,0.1); margin-bottom: 2px; }
+.msg-sent { background: var(--msg-sent); align-self: flex-end; border-top-right-radius: 0; }
+.msg-received { background: var(--msg-received); align-self: flex-start; border-top-left-radius: 0; }
+
+#chat-input-container { padding: 8px; background: #f0f2f5; display: flex; align-items: center; gap: 8px; }
+#chat-input { flex: 1; padding: 10px 15px; border-radius: 20px; border: none; outline: none; }
+#chat-send-btn { background: var(--success-color); border-radius: 50%; width: 40px; height: 40px; padding: 8px; display: flex; justify-content: center; align-items: center; }
+
+/* Call View */
+.call-view { background: #000; z-index: 30; align-items: center; justify-content: center; }
+video, audio { width: 100%; height: 100%; object-fit: cover; }
+#local-video { position: absolute; bottom: 120px; right: 20px; width: 100px; height: 140px; border-radius: 10px; border: 2px solid white; z-index: 31; }
+.call-overlay { position: absolute; bottom: 0; left: 0; width: 100%; height: 30%; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 40px; color: white; z-index: 32; }
+.call-btn { width: 60px; height: 60px; border-radius: 50%; border: none; font-weight: bold; cursor: pointer; color: white; }
+.end-call, .reject-call { background: var(--danger-color); }
+.accept-call { background: var(--success-color); }
+
+/* Modals */
+.modal { background: rgba(0,0,0,0.6); z-index: 50; justify-content: center; align-items: center; }
+.modal-content { background: white; padding: 25px; border-radius: 10px; width: 85%; max-width: 350px; text-align: center; }
+.modal-content input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
+.modal-content button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; background: var(--primary-color); color: white; margin-top: 10px; }
+/* CSS will go here☝️ in Part 2 */
+
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <!-- Auth View -->
+        <div id="auth-view" class="view">
+            <h1>CallingApp</h1>
+            <form id="login-form">
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-password" placeholder="Password" required>
+                <button type="submit">Login</button>
+                <div id="login-error" class="error-message"></div>
+                <a href="#" id="switch-to-signup">Don't have an account? Sign up</a>
+            </form>
+            <form id="signup-form" style="display: none;">
+                <input type="email" id="signup-email" placeholder="Email" required>
+                <input type="password" id="signup-password" placeholder="Password" required>
+                <button type="submit">Sign Up</button>
+                <div id="signup-error" class="error-message"></div>
+                <a href="#" id="switch-to-login">Already have an account? Login</a>
+            </form>
+        </div>
+
+        <!-- Main App View -->
+        <div id="main-view" class="view" style="display: none;">
+            <header class="main-header">
+                <div class="header-top">
+                    <h2>CallingApp</h2>
+                    <button id="add-friend-btn" class="icon-btn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 4V20M20 12H4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <button id="menu-btn" class="icon-btn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 8C13.1 8 14 7.1 14 6C14 4.9 13.1 4 12 4C10.9 4 10 4.9 10 6C10 7.1 10.9 8 12 8ZM12 10C10.9 10 10 10.9 10 12C10 13.1 10.9 14 12 14C13.1 14 14 13.1 14 12C14 10.9 13.1 10 12 10ZM12 16C10.9 16 10 16.9 10 18C10 19.1 10.9 20 12 20C13.1 20 14 19.1 14 18C14 16.9 13.1 16 12 16Z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+                <nav class="header-nav">
+                    <div id="nav-home" class="nav-tab active">
+                        Chats <span class="badge" style="display: none;"></span>
+                    </div>
+                    <div id="nav-notifications" class="nav-tab">
+                        Updates <span class="badge" style="display: none;"></span>
+                    </div>
+                    <div id="nav-calls" class="nav-tab">
+                        Calls <span class="badge" style="display: none;"></span>
+                    </div>
+                </nav>
+            </header>
+            <main id="main-content">
+                <div id="home-content" class="content-panel">
+                    <!-- Chats list will be populated here -->
+                </div>
+                <div id="notifications-content" class="content-panel" style="display: none;">
+                    <!-- Updates list will be populated here -->
+                </div>
+                <div id="calls-content" class="content-panel" style="display: none;">
+                    <!-- Calls list will be populated here -->
+                </div>
+            </main>
+        </div>
+
+        <!-- Chat View -->
+        <div id="chat-view" class="view" style="display: none;">
+            <header class="chat-header">
+                <button id="chat-back-btn" class="icon-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <div class="contact-info">
+                    <span id="contact-username"></span> - <span id="contact-name"></span>
+                  <div id="typing-status" style="font-size: 11px; color: #dcf8c6; height: 14px;"></div>
+                </div>
+                <button id="voice-call-btn" class="icon-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 5C3 4.44772 3.44772 4 4 4H8.58579C8.851 4 9.10536 4.10536 9.29289 4.29289L11.2929 6.29289C11.4804 6.48043 11.7348 6.58579 12 6.58579C12.2652 6.58579 12.5196 6.48043 12.7071 6.29289L14.7071 4.29289C14.8946 4.10536 15.149 4 15.4142 4H20C20.5523 4 21 4.44772 21 5V19C21 19.5523 20.5523 20 20 20H4C3.44772 20 3 19.5523 3 19V5Z" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </button>
+                <button id="video-call-btn" class="icon-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15 10L11 7.11325V12.8868L15 10ZM21 10C21 13.866 17.4183 17 13 17V19C18.5228 19 23 14.9706 23 10H21ZM13 3C17.4183 3 21 6.13401 21 10H23C23 5.02944 18.5228 1 13 1V3ZM13 17C8.58172 17 5 13.866 5 10H3C3 14.9706 7.47715 19 13 19V17ZM5 10C5 6.13401 8.58172 3 13 3V1C7.47715 1 3 5.02944 3 10H5Z" fill="currentColor"/>
+                    </svg>
+                </button>
+                <button id="chat-more-btn" class="icon-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 8C13.1 8 14 7.1 14 6C14 4.9 13.1 4 12 4C10.9 4 10 4.9 10 6C10 7.1 10.9 8 12 8ZM12 10C10.9 10 10 10.9 10 12C10 13.1 10.9 14 12 14C13.1 14 14 13.1 14 12C14 10.9 13.1 10 12 10ZM12 16C10.9 16 10 16.9 10 18C10 19.1 10.9 20 12 20C13.1 20 14 19.1 14 18C14 16.9 13.1 16 12 16Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </header>
+            <div id="chat-messages"></div>
+            <div id="chat-input-container">
+                <input type="text" id="chat-input" placeholder="Type a message...">
+                <button id="chat-send-btn" class="icon-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Call Views -->
+        <div id="video-call-view" class="call-view" style="display: none;">
+            <video id="remote-video" autoplay></video>
+            <video id="local-video" autoplay muted></video>
+            <div class="call-overlay">
+                <div class="caller-info">
+                    <span id="caller-name-video"></span> (<span id="caller-username-video"></span>)
+                </div>
+                <div class="call-controls">
+                    <button id="end-call-btn-video" class="call-btn end-call">End Call</button>
+                </div>
+            </div>
+        </div>
+        <div id="voice-call-view" class="call-view" style="display: none;">
+            <audio id="remote-audio" autoplay></audio>
+            <div class="call-overlay">
+                <div class="caller-info">
+                    <span id="caller-name-voice"></span> (<span id="caller-username-voice"></span>)
+                </div>
+                <div class="call-controls">
+                    <button id="end-call-btn-voice" class="call-btn end-call">End Call</button>
+                </div>
+// ربط أزرار إنهاء المكالمة
+elt('end-call-btn-video').onclick = endCallHandler;
+elt('end-call-btn-voice').onclick = endCallHandler;
+elt('reject-call-btn').onclick = () => {
+    elt('ringtone').pause();
+    closeModal('incoming-call-modal');
+    db.ref(`calls/${currentUser.uid}`).remove();
+};
+            </div>
+        </div>
+
+        <!-- Modals -->
+        <div id="profile-setup-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h3>Set Up Your Profile</h3>
+                <input type="text" id="profile-name" placeholder="Your Name" required>
+                <input type="text" id="profile-username" placeholder="Username (unique)" required>
+                <button id="save-profile-btn">Save</button>
+                <div id="profile-error" class="error-message"></div>
+            </div>
+        </div>
+        <div id="add-friend-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h3>Add Friend</h3>
+                <input type="text" id="friend-username" placeholder="Enter friend's username" required>
+                <button id="send-request-btn">Send Request</button>
+                <div id="add-friend-error" class="error-message"></div>
+            </div>
+        </div>
+        <div id="profile-view-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h3>Profile & Settings</h3>
+                <div id="user-info"></div>
+                <button id="edit-profile-btn">Edit Profile</button>
+                <h4>Blocked Users</h4>
+                <ul id="blocked-list"></ul>
+                <button id="logout-btn">Logout</button>
+            </div>
+        </div>
+        <div id="incoming-call-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h3>Incoming Call</h3>
+                <div class="caller-info">
+                    <span id="incoming-caller-name"></span> (<span id="incoming-caller-username"></span>)
+                </div>
+                <div class="call-controls">
+                    <button id="accept-call-btn" class="call-btn accept-call">Accept</button>
+                    <button id="reject-call-btn" class="call-btn reject-call">Reject</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="ringtone" loop>
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66hVFApGn+DyvmUdBzaO1fLMfCsFJXHH8N2QQAoUXrTp66h">
+</audio>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
+<script>
+    // --- 1. إعدادات Firebase (استبدل القيم ببيانات مشروعك) ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyDahFRB-bXcVahNiqf8HF_39N5ggBtbp0Y",
+        authDomain: "callingapk.firebaseapp.com",
+        databaseURL: "https://callingapk-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "callingapk",
+        storageBucket: "callingapk.firebasestorage.app",
+        messagingSenderId: "137198030264",
+        appId: "1:137198030264:web:7dfa63545871e7aabd134d",
+        measurementId: "G-BKJD2YKYBR"
+    };
+
+    // التحقق من تشغيل Firebase بالأسلوب التقليدي
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    
+    const auth = firebase.auth();
+    const db = firebase.database();
+    const analytics = firebase.analytics(); // سيعمل الآن لأن MeasurementId موجود
+
+    // --- 2. المتغيرات العامة ---
+    let currentUser = null, currentProfile = null;
+    let currentChatPartner = null;
+    let peerConnection = null, localStream = null;
+    
+    const rtcConfig = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' }, // خادم جوجل STUN
+        // هنا يجب إضافة خادم TURN في المستقبل لضمان العمل على الـ 4G
+        /* { 
+            urls: 'turn:your-turn-server.com', 
+            username: 'user', 
+            credential: 'password' 
+        } */
+    ]
+};
+
+ // --- 3. دوال مساعدة (UI Helpers) ---
+    const elt = (id) => document.getElementById(id);
+    const showView = (id) => {
+        document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+        elt(id).style.display = 'flex';
+    };
+    const showModal = (id) => elt(id).style.display = 'flex';
+    const closeModal = (id) => elt(id).style.display = 'none';
+
+    // --- 4. المصادقة (Auth & Profile) ---
+    auth.onAuthStateChanged(user => {
+    // 1. هل هناك مستخدم مسجل دخول؟
+    if (user) {
+        // 2. هل قام المستخدم بتوثيق بريده الإلكتروني؟
+        if (user.emailVerified) {
+            currentUser = user;
+            db.ref(`users/${user.uid}`).once('value', snap => {
+                if (snap.exists()) {
+                    currentProfile = snap.val();
+                    initApp();
+                } else {
+                    showView('main-view');
+                    showModal('profile-setup-modal');
+                }
+            });
+        } else {
+            // 3. إذا لم يوثق البريد، نقوم بتسجيل خروجه وإعادته لشاشة التأكد
+            console.log("Email not verified yet.");
+            showView('auth-view'); 
+            // اختياري: يمكنك إظهار رسالة تنبيه هنا
+        }
+    } else {
+        // لا يوجد مستخدم مسجل
+        showView('auth-view');
+    }
+});
+
+    // تسجيل الدخول
+    elt('login-form').onsubmit = (e) => {
+    e.preventDefault();
+    const email = elt('login-email').value;
+    const password = elt('login-password').value;
+
+    auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+            const user = userCredential.user;
+            
+            if (user.emailVerified) {
+                // الإيميل موثق -> ادخل للتطبيق
+                showView('main-view');
+            } else {
+                // الإيميل غير موثق -> أخرجه وأظهر رسالة
+                alert("يرجى تفعيل حسابك عبر الرابط المرسل لبريدك الإلكتروني أولاً.");
+                auth.signOut();
+            }
+        })
+        .catch(err => {
+            alert(err.message);
+        });
+};
+    // إنشاء حساب
+  // النسخة المصححة لعملية التسجيل (Signup)
+elt('signup-form').onsubmit = (e) => {
+    e.preventDefault();
+    elt('signup-error').innerText = "";
+    const email = elt('signup-email').value;
+    const password = elt('signup-password').value;
+
+    auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+            // 1. إعدادات رابط العودة بعد التفعيل
+            const actionCodeSettings = {
+                // استبدل الرابط أدناه برابط موقعك الحقيقي على Netlify أو Firebase
+                url: 'https://gameesite.github.io/Callingapk/', 
+                handleCodeInApp: true,
+            };
+
+            // 2. إرسال إيميل التحقق مع الإعدادات
+            userCredential.user.sendEmailVerification(actionCodeSettings)
+                .then(() => {
+                    alert("تم إنشاء الحساب! يرجى التحقق من بريدك الإلكتروني لتفعيله.");
+                    
+                    // 3. تسجيل الخروج لمنعه من الدخول قبل التفعيل
+                    auth.signOut().then(() => {
+                        elt('signup-form').reset();
+                        showView('auth-view'); // العودة لشاشة الدخول
+                    });
+                });
+        })
+        .catch(err => {
+            elt('signup-error').innerText = err.message;
+        });
+};
+
+    // التبديل بين النماذج
+    elt('switch-to-signup').onclick = () => { elt('login-form').style.display='none'; elt('signup-form').style.display='block'; };
+    elt('switch-to-login').onclick = () => { elt('signup-form').style.display='none'; elt('login-form').style.display='block'; };
+
+    // حفظ البروفايل (مع نظام Username)
+    elt('save-profile-btn').onclick = () => {
+        const username = elt('profile-username').value.trim().toLowerCase().replace(/\s/g, '');
+        const name = elt('profile-name').value;
+        if (username.length < 3) return alert("Username too short!");
+
+        // التحقق من تكرار اسم المستخدم
+        db.ref(`usernames/${username}`).once('value', snap => {
+            if (snap.exists()) {
+                elt('profile-error').innerText = "Username already taken!";
+            } else {
+                const profile = { name, username, uid: currentUser.uid, email: currentUser.email };
+                const updates = {};
+                updates[`users/${currentUser.uid}`] = profile;
+                updates[`usernames/${username}`] = currentUser.uid; // ربط الاسم بالـ UID
+
+                db.ref().update(updates).then(() => {
+                    currentProfile = profile;
+                    closeModal('profile-setup-modal');
+                    initApp();
+                });
+            }
+        });
+    };
+
+  function loadCallLogs() {
+    db.ref(`callLogs/${currentUser.uid}`).orderByChild('timestamp').limitToLast(20).on('value', snap => {
+        const callsList = elt('calls-content');
+        callsList.innerHTML = '';
+        
+        const logs = [];
+        snap.forEach(child => { logs.unshift({id: child.key, ...child.val()}); });
+
+        logs.forEach(log => {
+            const date = new Date(log.timestamp).toLocaleTimeString();
+            const isMissed = log.status === 'missed';
+            
+            const div = document.createElement('div');
+            div.className = 'list-item';
+            div.innerHTML = `
+                <div class="avatar" style="background: ${isMissed ? '#ef5350' : '#4caf50'}">
+                    ${log.type === 'video' ? '📹' : '📞'}
+                </div>
+                <div class="item-info">
+                    <div class="item-title" style="color: ${isMissed ? '#ef5350' : 'black'}">
+                        ${log.callerName} ${isMissed ? '(Missed)' : ''}
+                    </div>
+                    <div class="item-subtitle">${date}</div>
+                </div>
+            `;
+            callsList.appendChild(div);
+        });
+    });
+}
+function monitorPresence() {
+    const statusRef = db.ref(`users/${currentUser.uid}/status`);
+    const connectedRef = db.ref('.info/connected');
+    connectedRef.on('value', snap => {
+        if (snap.val() === true) {
+            statusRef.set('online');
+            statusRef.onDisconnect().set('offline');
+        }
+    });
+}
+    // تهيئة التطبيق بعد الدخول
+    function initApp() {
+    showView('main-view');
+    loadContacts();
+    listenForIncomingCalls();
+    listenForRequests();
+    monitorPresence(); // ميزة الحالة (متصل)
+    loadCallLogs();    // ميزة سجل المكالمات
+}
+
+    // --- 5. الأصدقاء والطلبات (نظام Username) ---
+    elt('add-friend-btn').onclick = () => showModal('add-friend-modal');
+    
+    elt('send-request-btn').onclick = () => {
+        const targetUser = elt('friend-username').value.trim().toLowerCase();
+        if (targetUser === currentProfile.username) return alert("You cannot add yourself!");
+
+        db.ref(`usernames/${targetUser}`).once('value', snap => {
+            if (!snap.exists()) {
+                elt('add-friend-error').innerText = "User not found.";
+            } else {
+                const targetUid = snap.val();
+                // إرسال طلب صداقة
+                db.ref(`users/${targetUid}/requests/${currentUser.uid}`).set({
+                    from: currentUser.uid,
+                    name: currentProfile.name,
+                    username: currentProfile.username
+                }).then(() => {
+                    alert("Friend request sent!");
+                    closeModal('add-friend-modal');
+                });
+            }
+        });
+    };
+
+    // الاستماع لطلبات الصداقة
+    function listenForRequests() {
+        db.ref(`users/${currentUser.uid}/requests`).on('child_added', snap => {
+            const req = snap.val();
+            const confirm = window.confirm(`Accept request from @${req.username} (${req.name})?`);
+            if (confirm) {
+                // قبول الصداقة (إضافة للطرفين)
+                db.ref(`users/${currentUser.uid}/contacts/${snap.key}`).set({ name: req.name, username: req.username, uid: snap.key });
+                db.ref(`users/${snap.key}/contacts/${currentUser.uid}`).set({ name: currentProfile.name, username: currentProfile.username, uid: currentUser.uid });
+            }
+            snap.ref.remove(); // حذف الطلب بعد المعالجة
+        });
+    }
+
+    // --- 6. الدردشة وقائمة الاتصال ---
+    function loadContacts() {
+    const contactsPath = db.ref(`users/${currentUser.uid}/contacts`);
+    
+    // 1. إيقاف المستمع الرئيسي للقائمة قبل بدء واحد جديد
+    contactsPath.off(); 
+
+    contactsPath.on('value', snap => {
+        const list = elt('home-content');
+        list.innerHTML = '';
+        
+        snap.forEach(child => {
+            const c = child.val();
+            const statusPath = db.ref(`users/${c.uid}/status`);
+            
+            // 2. إيقاف مستمع الحالة لهذا الصديق تحديداً قبل إعادة بنائه
+            statusPath.off(); 
+
+            statusPath.on('value', statusSnap => {
+                const status = statusSnap.val() || 'offline';
+                const statusColor = status === 'online' ? '#4caf50' : '#9e9e9e';
+                
+                // البحث عن العنصر أو إنشاؤه
+                let contactDiv = document.getElementById(`contact-${c.uid}`);
+                if (!contactDiv) {
+                    contactDiv = document.createElement('div');
+                    contactDiv.id = `contact-${c.uid}`;
+                    contactDiv.className = 'list-item';
+                    list.appendChild(contactDiv);
+                }
+
+                contactDiv.innerHTML = `
+                    <div class="avatar" style="position: relative;">
+                        ${c.name[0].toUpperCase()}
+                        <span style="position: absolute; bottom: 0; right: 0; width: 12px; height: 12px; background: ${statusColor}; border: 2px solid white; border-radius: 50%;"></span>
+                    </div>
+                    <div class="item-info">
+                        <div class="item-title">${c.name}</div>
+                        <div class="item-subtitle">${status === 'online' ? 'Active now' : 'Offline'}</div>
+                    </div>
+                `;
+                contactDiv.onclick = () => openChat(c);
+            });
+        });
+    });
+}
+
+    function openChat(contact) {
+        currentChatPartner = contact;
+        elt('contact-name').innerText = contact.name;
+        elt('contact-username').innerText = '@' + contact.username;
+        showView('chat-view');
+
+        const chatId = [currentUser.uid, contact.uid].sort().join('_');
+        const msgsRef = db.ref(`messages/${chatId}`);
+        elt('chat-messages').innerHTML = '';
+        
+        msgsRef.off();
+        msgsRef.limitToLast(50).on('child_added', snap => {
+            const msg = snap.val();
+            const div = document.createElement('div');
+            div.className = `message ${msg.sender === currentUser.uid ? 'msg-sent' : 'msg-received'}`;
+            div.innerText = msg.text;
+            elt('chat-messages').appendChild(div);
+            elt('chat-messages').scrollTop = elt('chat-messages').scrollHeight;
+        });
+    }
+// متغير لتخزين المؤقت الزمني
+let typingTimeout;
+
+elt('chat-input').addEventListener('input', () => {
+    if (!currentChatPartner) return;
+
+    const chatId = [currentUser.uid, currentChatPartner.uid].sort().join('_');
+    const typingRef = db.ref(`typing/${chatId}/${currentUser.uid}`);
+
+    // أخبر الطرف الآخر أنك تكتب
+    typingRef.set(true);
+
+    // إذا توقف المستخدم عن الكتابة لمدة 2 ثانية، نحذف الحالة
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+        typingRef.remove();
+    }, 2000);
+});
+
+    function listenForTyping(contactUid) {
+    const chatId = [currentUser.uid, contactUid].sort().join('_');
+    const partnerTypingRef = db.ref(`typing/${chatId}/${contact.Uid}`);
+    
+    partnerTypingRef.off('value', snap => {
+        const statusElt = elt('typing-status');
+        if (snap.exists() && snap.val() === true) {
+            statusElt.innerText = 'typing...';
+        } else {
+            statusElt.innerText = '';
+        }
+    });
+}
+// لا تنسَ استدعاء هذه الدالة داخل openChat
+// listenForTyping(contact.uid);
+    elt('chat-back-btn').onclick = () => showView('main-view');
+
+    elt('chat-send-btn').onclick = () => {
+        const text = elt('chat-input').value;
+        if (!text.trim()) return;
+        const chatId = [currentUser.uid, currentChatPartner.uid].sort().join('_');
+        db.ref(`messages/${chatId}`).push({
+            sender: currentUser.uid, text, timestamp: Date.now()
+        });
+        elt('chat-input').value = '';
+    };
+    // --- 7. المكالمات (WebRTC) ---
+    elt('video-call-btn').onclick = () => startCall(true);
+    elt('voice-call-btn').onclick = () => startCall(false);
+
+    async function startCall(video) {
+    // تسجيل حدث بدء مكالمة في Analytics
+    analytics.logEvent('call_started', {
+        type: video ? 'video' : 'voice',
+        time: new Date().toISOString()
+    });
+
+        // عرض اسم الطرف الآخر
+        elt(video ? 'caller-name-video' : 'caller-name-voice').innerText = currentChatPartner.name;
+        elt(video ? 'caller-username-video' : 'caller-username-voice').innerText = '@' + currentChatPartner.username;
+
+        localStream = await navigator.mediaDevices.getUserMedia({ video: video, audio: true });
+        if (video) elt('local-video').srcObject = localStream;
+
+        peerConnection = new RTCPeerConnection(rtcConfig);
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+        peerConnection.ontrack = e => {
+            (video ? elt('remote-video') : elt('remote-audio')).srcObject = e.streams[0];
+        };
+
+        peerConnection.onicecandidate = e => {
+            if (e.candidate) db.ref(`calls/${currentChatPartner.uid}/candidates`).push(e.candidate.toJSON());
+        };
+
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+
+        db.ref(`calls/${currentChatPartner.uid}`).set({
+            caller: currentUser.uid,
+            callerName: currentProfile.name,
+            callerUsername: currentProfile.username,
+            type: video ? 'video' : 'voice',
+            offer: { type: offer.type, sdp: offer.sdp }
+        });
+
+        db.ref(`calls/${currentChatPartner.uid}/answer`).on('value', async snap => {
+            if (snap.exists() && !peerConnection.currentRemoteDescription) {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(snap.val()));
+            }
+        });
+
+        db.ref(`calls/${currentChatPartner.uid}/remoteCandidates`).on('child_added', snap => {
+            peerConnection.addIceCandidate(new RTCIceCandidate(snap.val()));
+        });
+    }
+
+    function logCall(targetUid, type, status) {
+    const callLogRef = db.ref(`callLogs/${targetUid}`).push();
+    const callLogData = {
+        callerId: currentUser.uid,
+        callerName: currentProfile.name,
+        type: type, // 'video' or 'voice'
+        status: status, // 'missed', 'accepted'
+        timestamp: Date.now()
+    };
+    callLogRef.set(callLogData);
+    return callLogRef.key; // سنحتاجه لتحديث الحالة لاحقاً إذا رغبنا
+}
+
+    // استقبال المكالمات
+    // استقبال المكالمات
+function listenForIncomingCalls() {
+    const callRef = db.ref(`calls/${currentUser.uid}`);
+    callRef.off(); // تنظيف أي مستمع سابق
+
+    callRef.on('value', snap => {
+        const data = snap.val();
+        // التحقق من وجود عرض وعدم وجود إجابة سابقة
+        if (data && data.offer && !data.answer) {
+            if (elt('incoming-call-modal').style.display === 'flex') return;
+            elt('incoming-caller-name').innerText = data.callerName;
+            elt('incoming-caller-username').innerText = '@' + data.callerUsername;
+            showModal('incoming-call-modal');
+            elt('ringtone').play().catch(e => console.log(e));
+            window.incomingCallData = data;
+        } 
+        // إذا قام المتصل بإلغاء المكالمة (حذف البيانات)
+        else if (!data) {
+            closeModal('incoming-call-modal');
+            elt('ringtone').pause();
+            elt('ringtone').currentTime = 0;
+        }
+    });
+}
+
+elt('accept-call-btn').onclick = async () => {
+    closeModal('incoming-call-modal');
+    elt('ringtone').pause();
+    const data = window.incomingCallData;
+    if (!data) return;
+
+    isVideoCall = (data.type === 'video');
+    showView(isVideoCall ? 'video-call-view' : 'voice-call-view');
+    elt(isVideoCall ? 'caller-name-video' : 'caller-name-voice').innerText = data.callerName;
+    
+    localStream = await navigator.mediaDevices.getUserMedia({ video: isVideoCall, audio: true });
+    if (isVideoCall) elt('local-video').srcObject = localStream;
+
+    peerConnection = new RTCPeerConnection(rtcConfig);
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+    peerConnection.ontrack = e => {
+        (isVideoCall ? elt('remote-video') : elt('remote-audio')).srcObject = e.streams[0];
+    };
+
+    peerConnection.onicecandidate = e => {
+        if (e.candidate) db.ref(`calls/${data.caller}/remoteCandidates`).push(e.candidate.toJSON());
+    };
+
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+
+    db.ref(`calls/${currentUser.uid}/answer`).set({ type: answer.type, sdp: answer.sdp });
+    
+    // تنظيف مستمعي المرشحين قبل البدء
+    const candidatesRef = db.ref(`calls/${currentUser.uid}/candidates`);
+    candidatesRef.off(); 
+    candidatesRef.on('child_added', snap => {
+        if (peerConnection) peerConnection.addIceCandidate(new RTCIceCandidate(snap.val())).catch(e => {});
+    });
+};
+
+// إنهاء ورفض المكالمات
+async function endCallHandler() {
+    elt('ringtone').pause();
+    elt('ringtone').currentTime = 0;
+
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+
+    // إيقاف مستمعي البيانات الحالية
+    db.ref(`calls/${currentUser.uid}`).off();
+    db.ref(`calls/${currentUser.uid}/candidates`).off();
+
+    if (currentChatPartner) {
+        db.ref(`calls/${currentChatPartner.uid}/remoteCandidates`).off();
+        await db.ref(`calls/${currentChatPartner.uid}`).remove();
+    }
+    await db.ref(`calls/${currentUser.uid}`).remove();
+
+    // تصفير عناصر الفيديو والعودة
+    if (elt('remote-video')) elt('remote-video').srcObject = null;
+    if (elt('local-video')) elt('local-video').srcObject = null;
+    showView('main-view');
+}
+
+    // 5. العودة للواجهة الرئيسية
+    showView('main-view');
+    console.log("Call ended and resources cleaned up.");
+}
+elt('end-call-btn-video').onclick = endCallHandler;
+elt('end-call-btn-voice').onclick = endCallHandler;
+elt('reject-call-btn').onclick = () => {
+    elt('ringtone').pause();
+    closeModal('incoming-call-modal');
+    db.ref(`calls/${currentUser.uid}`).remove();
+    // اختياري: تسجيلها كمكالمة فائتة
+    logCall(currentUser.uid, 'voice', 'missed'); 
+};
+    // --- 8. القائمة الجانبية وتسجيل الخروج ---
+    elt('menu-btn').onclick = () => {
+        elt('user-info').innerHTML = `<h3>${currentProfile.name}</h3><p>@${currentProfile.username}</p>`;
+        showModal('profile-view-modal');
+    };
+// --- ميزة التنقل بين التبويبات (Chats, Updates, Calls) ---
+    const tabs = [
+        { btn: 'nav-home', content: 'home-content' },
+        { btn: 'nav-notifications', content: 'notifications-content' },
+        { btn: 'nav-calls', content: 'calls-content' }
+    ];
+
+    tabs.forEach(tab => {
+        elt(tab.btn).onclick = () => {
+            // 1. إخفاء كل المحتويات
+            document.querySelectorAll('.content-panel').forEach(p => p.style.display = 'none');
+            // 2. إزالة الحالة النشطة من كل الأزرار
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            
+            // 3. إظهار المحتوى المختار وتفعيل الزر
+            elt(tab.content).style.display = 'block';
+            elt(tab.btn).classList.add('active');
+
+            // 4. إذا كان التبويب هو "المكالمات"، قم بتحديث السجل
+            if (tab.btn === 'nav-calls') {
+                loadCallLogs();
+            }
+        };
+    });
+
+    document.getElementById('logout-btn').onclick = () => {
+    analytics.logEvent('user_logout');
+    auth.signOut().then(() => window.location.reload());
+};
+
+</script>
+</body>
+</html>
+
